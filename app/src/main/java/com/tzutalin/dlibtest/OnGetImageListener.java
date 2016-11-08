@@ -102,10 +102,6 @@ public class OnGetImageListener implements OnImageAvailableListener {
 
     private File                   mCascadeFile;
     private File                   mCascadeFileEye;
-    private CascadeClassifier      mJavaDetector;
-    private CascadeClassifier      mJavaDetectorEye;
-    public static final int        JAVA_DETECTOR       = 0;
-    private int                    mDetectorType       = JAVA_DETECTOR;
 
     private boolean mIsComputing = false;
     private Handler mInferenceHandler;
@@ -116,72 +112,6 @@ public class OnGetImageListener implements OnImageAvailableListener {
     private FloatingCameraWindow mWindow;
     private Paint mFaceLandmardkPaint;
 
-    private Mat mRgba;
-    private Mat mGray;
-    private Mat mGray2;
-
-    private float                  mRelativeFaceSize   = 0.2f;
-    private int mAbsoluteFaceSize = 0;
-    double xCenter = -1;
-    double yCenter = -1;
-
-    private int learn_frames = 0;
-    private Mat teplateR;
-    private Mat teplateL;
-    int method = 0;
-
-    private void cascadeInit(){
-        try {
-            // load cascade file from application resources
-            InputStream is = mContext.getApplicationContext().getResources().openRawResource(R.raw.lbpcascade_frontalface);
-            File cascadeDir = mContext.getApplicationContext().getDir("cascade", Context.MODE_PRIVATE);
-            mCascadeFile = new File(cascadeDir, "lbpcascade_frontalface.xml");
-            FileOutputStream os = new FileOutputStream(mCascadeFile);
-
-            byte[] buffer = new byte[4096];
-            int bytesRead;
-            while ((bytesRead = is.read(buffer)) != -1) {
-                os.write(buffer, 0, bytesRead);
-            }
-            is.close();
-            os.close();
-
-            // load cascade file from application resources
-            InputStream ise = mContext.getApplicationContext().getResources().openRawResource(R.raw.haarcascade_lefteye_2splits);
-            File cascadeDirEye = mContext.getApplicationContext().getDir("cascade", Context.MODE_PRIVATE);
-            mCascadeFileEye = new File(cascadeDirEye, "haarcascade_righteye_2splits.xml");
-            FileOutputStream ose = new FileOutputStream(mCascadeFileEye);
-
-            while ((bytesRead = ise.read(buffer)) != -1) {
-                ose.write(buffer, 0, bytesRead);
-            }
-            ise.close();
-            ose.close();
-
-            mJavaDetector = new CascadeClassifier(mCascadeFile.getAbsolutePath());
-            mJavaDetector.load( mCascadeFile.getAbsolutePath() );
-            if (mJavaDetector.empty()) {
-                Log.e(TAG, "Failed to load cascade classifier");
-                mJavaDetector = null;
-            } else
-                Log.i(TAG, "Loaded cascade classifier from " + mCascadeFile.getAbsolutePath());
-
-            mJavaDetectorEye = new CascadeClassifier(mCascadeFileEye.getAbsolutePath());
-            mJavaDetectorEye.load( mCascadeFile.getAbsolutePath() );
-            if (mJavaDetectorEye.empty()) {
-                Log.e(TAG, "Failed to load cascade classifier for eye");
-                mJavaDetectorEye = null;
-            } else
-                Log.i(TAG, "Loaded cascade classifier from " + mCascadeFileEye.getAbsolutePath());
-
-            cascadeDir.delete();
-            cascadeDirEye.delete();
-
-        } catch (IOException e) {
-            e.printStackTrace();
-            Log.e(TAG, "Failed to load cascade. Exception thrown: " + e);
-        }
-    }
 
     public void initialize(
             final Context context,
@@ -193,7 +123,7 @@ public class OnGetImageListener implements OnImageAvailableListener {
         this.mInferenceHandler = handler;
         mPeopleDet = new PeopleDet();
         mWindow = new FloatingCameraWindow(mContext);
-        cascadeInit();
+
         mFaceLandmardkPaint = new Paint();
         mFaceLandmardkPaint.setColor(Color.BLUE);
         mFaceLandmardkPaint.setStrokeWidth(2);
@@ -434,13 +364,8 @@ public class OnGetImageListener implements OnImageAvailableListener {
                         if (results != null) {
                             for (final VisionDetRet ret : results) {
                                 float resizeRatio = 1.0f;
-                                Rect bounds = new Rect();
-                                bounds.left = (int) (ret.getLeft() * resizeRatio);
-                                bounds.top = (int) (ret.getTop() * resizeRatio);
-                                bounds.right = (int) (ret.getRight() * resizeRatio);
-                                bounds.bottom = (int) (ret.getBottom() * resizeRatio);
+
                                 Canvas canvas = new Canvas(mCroppedBitmap);
-                                mCroppedBitmap = eyesDetect(mCroppedBitmap);
 
                                 // Draw landmark
                                 ArrayList<Point> landmarks = ret.getFaceLandmarks();
@@ -492,145 +417,4 @@ public class OnGetImageListener implements OnImageAvailableListener {
         Trace.endSection();
     }
 
-    private Bitmap eyesDetect(Bitmap image){
-        mRgba = new Mat();
-        Utils.bitmapToMat(mCroppedBitmap, mRgba);
-
-        mGray = new Mat();
-        mGray2 = new Mat();
-        Imgproc.cvtColor(mRgba,mGray,COLOR_BGR2GRAY);
-        Imgproc.cvtColor(mRgba,mGray2,COLOR_BGR2GRAY);
-        if (mAbsoluteFaceSize == 0) {
-            int height = mGray.rows();
-            if (Math.round(height * mRelativeFaceSize) > 0) {
-                mAbsoluteFaceSize = Math.round(height * mRelativeFaceSize);
-            }
-
-        }
-
-
-        MatOfRect faces = new MatOfRect();
-
-
-
-        if (mDetectorType == JAVA_DETECTOR) {
-            if (mJavaDetector != null)
-                mJavaDetector.detectMultiScale(mGray, faces, 1.1, 2, 2, // TODO: objdetect.CV_HAAR_SCALE_IMAGE
-                        new Size(mAbsoluteFaceSize, mAbsoluteFaceSize), new Size());
-        }
-        else {
-            Log.e(TAG, "Detection method is not selected!");
-        }
-
-        org.opencv.core.Rect[] facesArray = faces.toArray();
-        for (int i = 0; i < facesArray.length; i++)
-        {
-            xCenter = (facesArray[i].x + facesArray[i].width + facesArray[i].x) / 2;
-            yCenter = (facesArray[i].y + facesArray[i].y + facesArray[i].height) / 2;
-            org.opencv.core.Point center = new org.opencv.core.Point(xCenter, yCenter);
-
-            /*Imgproc.circle(mRgba, center, 10, new Scalar(255, 0, 0, 255), 3);
-
-            Imgproc.putText(mRgba, "[" + center.x + "," + center.y + "]",
-                    new Point(center.x + 20, center.y + 20),
-                    Core.FONT_HERSHEY_SIMPLEX, 0.7, new Scalar(255, 255, 255,
-                            255));*/
-
-            org.opencv.core.Rect r = facesArray[i];
-            // compute the eye area
-            org.opencv.core.Rect eyearea = new org.opencv.core.Rect(r.x + r.width / 8,
-                    (int) (r.y + (r.height / 4.5)), r.width - 2 * r.width / 8,
-                    (int) (r.height / 3.0));
-            // split it
-            org.opencv.core.Rect eyearea_right = new org.opencv.core.Rect(r.x + r.width / 16,
-                    (int) (r.y + (r.height / 4.5)),
-                    (r.width - 2 * r.width / 16) / 2, (int) (r.height / 3.0));
-            org.opencv.core.Rect eyearea_left = new org.opencv.core.Rect(r.x + r.width / 16
-                    + (r.width - 2 * r.width / 16) / 2,
-                    (int) (r.y + (r.height / 4.5)),
-                    (r.width - 2 * r.width / 16) / 2, (int) (r.height / 3.0));
-            // draw the area - mGray is working grayscale mat, if you want to
-            // see area in rgb preview, change mGray to mRgba
-            Imgproc.rectangle(mRgba, eyearea_left.tl(), eyearea_left.br(),
-                    new Scalar(255, 0, 0, 255), 2);
-            Imgproc.rectangle(mRgba, eyearea_right.tl(), eyearea_right.br(),
-                    new Scalar(255, 0, 0, 255), 2);
-
-            teplateR = get_template(mJavaDetectorEye, eyearea_right, 24);
-            teplateL = get_template(mJavaDetectorEye, eyearea_left, 24);
-            /*match_eye(eyearea_right, teplateR, method);
-            match_eye(eyearea_left, teplateL, method);*/
-        }
-        Utils.matToBitmap(mRgba,image);
-        return image;
-    }
-
-    private void match_eye(org.opencv.core.Rect area, Mat mTemplate, int type) {
-        org.opencv.core.Point matchLoc;
-        Mat mROI = mGray.submat(area);
-        int result_cols = mROI.cols() - mTemplate.cols() + 1;
-        int result_rows = mROI.rows() - mTemplate.rows() + 1;
-        // Check for bad template size
-        if (mTemplate.cols() == 0 || mTemplate.rows() == 0) {
-            return ;
-        }
-        Mat mResult = new Mat(result_cols, result_rows, CvType.CV_8U);
-
-        Imgproc.matchTemplate(mROI, mTemplate, mResult, TM_SQDIFF);
-
-        Core.MinMaxLocResult mmres = Core.minMaxLoc(mResult);
-        // there is difference in matching methods - best match is max/min value
-
-        matchLoc = mmres.minLoc;
-
-
-        org.opencv.core.Point matchLoc_tx = new org.opencv.core.Point(matchLoc.x + area.x, matchLoc.y + area.y);
-        org.opencv.core.Point matchLoc_ty = new org.opencv.core.Point(matchLoc.x + mTemplate.cols() + area.x,
-                matchLoc.y + mTemplate.rows() + area.y);
-
-        Imgproc.rectangle(mRgba, matchLoc_tx, matchLoc_ty, new Scalar(255, 255, 0,
-                255));
-        org.opencv.core.Rect rec = new org.opencv.core.Rect(matchLoc_tx,matchLoc_ty);
-
-
-    }
-
-    private Mat get_template(CascadeClassifier clasificator, org.opencv.core.Rect area, int size) {
-        Mat template = new Mat();
-        Mat mROI = mGray2.submat(area);
-        MatOfRect eyes = new MatOfRect();
-        org.opencv.core.Point iris = new org.opencv.core.Point();
-        org.opencv.core.Rect eye_template = new org.opencv.core.Rect();
-        clasificator.detectMultiScale(mROI, eyes, 1.4, 4,
-                Objdetect.CASCADE_FIND_BIGGEST_OBJECT
-                        | Objdetect.CASCADE_SCALE_IMAGE, new Size(30, 30),
-                new Size());
-
-        org.opencv.core.Rect[] eyesArray = eyes.toArray();
-        for (int i = 0; i < eyesArray.length;) {
-            org.opencv.core.Rect e = eyesArray[i];
-            e.x = area.x + e.x;
-            e.y = area.y + e.y;
-            org.opencv.core.Rect eye_only_rectangle = new org.opencv.core.Rect((int) e.tl().x,
-                    (int) (e.tl().y + e.height * 0.4), (int) e.width,
-                    (int) (e.height * 0.6));
-            mROI = mGray2.submat(eye_only_rectangle);
-            Mat vyrez = mRgba.submat(eye_only_rectangle);
-
-
-            Core.MinMaxLocResult mmG = Core.minMaxLoc(mROI);
-
-            Imgproc.circle(vyrez, mmG.minLoc, 2, new Scalar(255, 255, 255, 255), 2);
-            iris.x = mmG.minLoc.x + eye_only_rectangle.x;
-            iris.y = mmG.minLoc.y + eye_only_rectangle.y;
-            eye_template = new org.opencv.core.Rect((int) iris.x - size / 2, (int) iris.y
-                    - size / 2, size, size);
-            Imgproc.rectangle(mRgba, eye_template.tl(), eye_template.br(),
-                    new Scalar(255, 0, 0, 255), 2);
-            template = (mGray2.submat(eye_template)).clone();
-            return template;
-        }
-         Utils.matToBitmap(mRgba,mCroppedBitmap);
-        return template;
-    }
 }
