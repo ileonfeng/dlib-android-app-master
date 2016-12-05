@@ -71,13 +71,19 @@ import org.opencv.imgproc.Imgproc;
 import org.opencv.objdetect.CascadeClassifier;
 import org.opencv.objdetect.Objdetect;
 
+import static android.R.attr.angle;
 import static android.R.attr.type;
 import static android.R.attr.width;
+import static android.R.attr.x;
+import static android.R.string.no;
+import static android.os.Build.VERSION_CODES.M;
+import static org.opencv.calib3d.Calib3d.calibrate;
 import static org.opencv.calib3d.Calib3d.projectPoints;
 import static org.opencv.calib3d.Calib3d.solvePnP;
 import static org.opencv.imgproc.Imgproc.COLOR_BGR2GRAY;
 import static org.opencv.imgproc.Imgproc.TM_SQDIFF;
 import static org.opencv.imgproc.Imgproc.cvtColor;
+import static org.opencv.imgproc.Imgproc.pointPolygonTest;
 
 
 /**
@@ -91,6 +97,8 @@ public class OnGetImageListener implements OnImageAvailableListener {
     private static final int IMAGE_MEAN = 117;
     private static final String TAG = "OnGetImageListener";
 
+    private double VECTOR_SIZE = 400.0;
+
     private int mScreenRotation = 270;
 
     private int mPreviewWdith = 0;
@@ -99,6 +107,7 @@ public class OnGetImageListener implements OnImageAvailableListener {
     private int[] mRGBBytes = null;
     private Bitmap mRGBframeBitmap = null;
     private Bitmap mCroppedBitmap = null;
+
 
     private File                   mCascadeFile;
     private File                   mCascadeFileEye;
@@ -190,13 +199,77 @@ public class OnGetImageListener implements OnImageAvailableListener {
 
     public MatOfPoint3f get_3d_model_points()
     {
-        List<Point3> objectPointsList    = new ArrayList<Point3>(6);
+        List<Point3> objectPointsList    = new ArrayList<Point3>(46);
         objectPointsList.add(new Point3(0.0f, 0.0f, 0.0f));
-        objectPointsList.add(new Point3(0.0f, -330.0f, -65.0f));
-        objectPointsList.add(new Point3(-225.0f, 170.0f, -135.0f));
-        objectPointsList.add(new Point3(225.0f, 170.0f, -135.0f));
-        objectPointsList.add(new Point3(-150.0f, -150.0f, -125.0f));
-        objectPointsList.add(new Point3(150.0f, -150.0f, -125.0f));
+        objectPointsList.add(new Point3(0.0f, -421.4845f, -89.3745f));
+        objectPointsList.add(new Point3(-247.603f, 122.219f, -237.55f));
+        objectPointsList.add(new Point3(247.603f, 122.219f, -237.55f));
+        objectPointsList.add(new Point3(-123.685f, -204.6945f, -120.4095f));
+        objectPointsList.add(new Point3(123.685f, -204.6945f, -120.4095f));
+
+        objectPointsList.add(new Point3(63.775f, -68.543f, -76.4535f));
+        objectPointsList.add(new Point3(-63.775f, -68.543f, -76.4535f));
+
+        objectPointsList.add(new Point3(0f, 151.374f, -103.856f));
+
+        objectPointsList.add(new Point3(-372.819f, 177.768f, -487.865f));//0
+        objectPointsList.add(new Point3(372.819f, 177.768f, -487.865f));//16
+
+        objectPointsList.add(new Point3(-368.8095f, 80.0575f, -479.0175f));//1
+        objectPointsList.add(new Point3(368.8095f, 80.0575f, -479.0175f));//15
+
+        objectPointsList.add(new Point3(-353.2915f, -51.7435f, -443.356f));//2
+        objectPointsList.add(new Point3(353.2915f, -51.7435f, -443.356f));//14
+
+        objectPointsList.add(new Point3(-333.1235f, -156.7025f, -407.6445f));//3
+        objectPointsList.add(new Point3(333.1235f, -156.7025f, -407.6445f));//13
+
+        objectPointsList.add(new Point3(-305.707f, -229.4145f, -345.786));//4
+        objectPointsList.add(new Point3(305.707f, -229.4145f, -345.786));//12
+
+        objectPointsList.add(new Point3(-252.414f, -310.842f, -276.34f));//5
+        objectPointsList.add(new Point3(252.414f, -310.842f, -276.34f));//11
+
+        objectPointsList.add(new Point3(-175.322f, -369.1215f, -202.9945f));//6
+        objectPointsList.add(new Point3(175.322f, -369.1215f, -202.9945f));//10
+
+        objectPointsList.add(new Point3(-101.583f, -411.735f, -143.4995f));//7
+        objectPointsList.add(new Point3(101.583f, -411.735f, -143.4995f));//9
+
+        //******************************EYES**************************************
+
+        objectPointsList.add(new Point3(-206.45f, 162.5685f, -168.746f));//37
+        objectPointsList.add(new Point3(206.45f, 162.5685f, -168.746f));//43
+
+        objectPointsList.add(new Point3(-145.069f, 162.436f, -168.746f));//38
+        objectPointsList.add(new Point3(145.069f, 162.436f, -168.746f));//44
+
+        objectPointsList.add(new Point3(-84.0115f, 132.2425f, -186.053f));//39
+        objectPointsList.add(new Point3(84.0115f, 132.2425f, -186.053f));//42
+
+        objectPointsList.add(new Point3(-135.093f, 110.194f, -176.4535f));//40
+        objectPointsList.add(new Point3(135.093f, 110.194f, -176.4535f));//46
+
+        objectPointsList.add(new Point3(-194.689f, 99.825f, -188.2525f));//41
+        objectPointsList.add(new Point3(194.689f, 99.825f, -188.2525f));//47
+
+        //******************************NOSE**************************************
+
+        objectPointsList.add(new Point3(0f, 118.2505f, -80.8105f));//28
+        objectPointsList.add(new Point3(0f, 52.0955f, -40.376f));//29
+        objectPointsList.add(new Point3(-25.6955f, -80.0655f, -66.1125f));//32
+        objectPointsList.add(new Point3(-1.043f, -83.0955f, -59.773f));//33
+        objectPointsList.add(new Point3(25.6955f, -80.0655f, -66.1125f));//34
+
+        //******************************LIPS**************************************
+
+        objectPointsList.add(new Point3(2.782f, -162.207f, -55.933f));//51
+        objectPointsList.add(new Point3(34.8215f, -152.1205f, -60.389f));//52
+        objectPointsList.add(new Point3(-34.8215f, -152.1205f, -60.389f));//50
+        objectPointsList.add(new Point3(43.516f, -228.234f, -72.8285f));//56
+        objectPointsList.add(new Point3(-43.516f, -228.234f, -72.8285f));//58
+        objectPointsList.add(new Point3(11.231f, -244.0305f, -71.3645f));//57
+
 
         MatOfPoint3f modelPoints = new MatOfPoint3f();
         modelPoints.fromList(objectPointsList);
@@ -205,15 +278,85 @@ public class OnGetImageListener implements OnImageAvailableListener {
 
     }
 
-    public MatOfPoint2f get_2d_image_points(ArrayList<Point> d)
+    public MatOfPoint2f get_2d_image_points(ArrayList<Point> d, boolean isCenter)
     {
-        List<org.opencv.core.Point> imagePointsList      = new ArrayList<org.opencv.core.Point>(6);
-        imagePointsList.add(new org.opencv.core.Point(d.get(30).x, d.get(30).y));
-        imagePointsList.add(new org.opencv.core.Point(d.get(8).x, d.get(8).y));
-        imagePointsList.add(new org.opencv.core.Point(d.get(36).x, d.get(36).y));
-        imagePointsList.add(new org.opencv.core.Point(d.get(45).x, d.get(45).y));
-        imagePointsList.add(new org.opencv.core.Point(d.get(48).x, d.get(48).y));
-        imagePointsList.add(new org.opencv.core.Point(d.get(54).x, d.get(54).y));
+        List<org.opencv.core.Point> imagePointsList      = new ArrayList<org.opencv.core.Point>(46);
+        float offsetx = 0;
+        float offsety = 0;
+
+        if (isCenter) {
+            offsetx = mCroppedBitmap.getWidth() / 2 - d.get(30).x;
+            offsety = mCroppedBitmap.getHeight() / 2 - d.get(30).y;
+        }
+
+        imagePointsList.add(new org.opencv.core.Point(d.get(30).x + offsetx, d.get(30).y + offsety));
+        imagePointsList.add(new org.opencv.core.Point(d.get(8).x + offsetx, d.get(8).y + offsety));
+        imagePointsList.add(new org.opencv.core.Point(d.get(36).x + offsetx, d.get(36).y + offsety));
+        imagePointsList.add(new org.opencv.core.Point(d.get(45).x + offsetx, d.get(45).y + offsety));
+        imagePointsList.add(new org.opencv.core.Point(d.get(48).x + offsetx, d.get(48).y + offsety));
+        imagePointsList.add(new org.opencv.core.Point(d.get(54).x + offsetx, d.get(54).y + offsety));
+
+        imagePointsList.add(new org.opencv.core.Point(d.get(35).x + offsetx, d.get(35).y + offsety));
+        imagePointsList.add(new org.opencv.core.Point(d.get(31).x + offsetx, d.get(31).y + offsety));
+
+        imagePointsList.add(new org.opencv.core.Point(d.get(27).x + offsetx, d.get(27).y + offsety));
+
+        //************************FACE STROKE*************************************
+        imagePointsList.add(new org.opencv.core.Point(d.get(0).x + offsetx, d.get(0).y + offsety));
+        imagePointsList.add(new org.opencv.core.Point(d.get(16).x + offsetx, d.get(16).y + offsety));
+
+        imagePointsList.add(new org.opencv.core.Point(d.get(1).x + offsetx, d.get(1).y + offsety));
+        imagePointsList.add(new org.opencv.core.Point(d.get(15).x + offsetx, d.get(15).y + offsety));
+
+        imagePointsList.add(new org.opencv.core.Point(d.get(2).x + offsetx, d.get(2).y + offsety));
+        imagePointsList.add(new org.opencv.core.Point(d.get(14).x + offsetx, d.get(14).y + offsety));
+
+        imagePointsList.add(new org.opencv.core.Point(d.get(3).x + offsetx, d.get(3).y + offsety));
+        imagePointsList.add(new org.opencv.core.Point(d.get(13).x + offsetx, d.get(13).y + offsety));
+
+        imagePointsList.add(new org.opencv.core.Point(d.get(4).x + offsetx, d.get(4).y + offsety));
+        imagePointsList.add(new org.opencv.core.Point(d.get(12).x + offsetx, d.get(12).y + offsety));
+
+        imagePointsList.add(new org.opencv.core.Point(d.get(5).x + offsetx, d.get(5).y + offsety));
+        imagePointsList.add(new org.opencv.core.Point(d.get(11).x + offsetx, d.get(11).y + offsety));
+
+        imagePointsList.add(new org.opencv.core.Point(d.get(6).x + offsetx, d.get(6).y + offsety));
+        imagePointsList.add(new org.opencv.core.Point(d.get(10).x + offsetx, d.get(10).y + offsety));
+
+        imagePointsList.add(new org.opencv.core.Point(d.get(7).x + offsetx, d.get(7).y + offsety));
+        imagePointsList.add(new org.opencv.core.Point(d.get(9).x + offsetx, d.get(9).y + offsety));
+
+        //*****************************.y + offsetyES*****************************************
+
+        imagePointsList.add(new org.opencv.core.Point(d.get(37).x + offsetx, d.get(37).y + offsety));
+        imagePointsList.add(new org.opencv.core.Point(d.get(43).x + offsetx, d.get(43).y + offsety));
+
+        imagePointsList.add(new org.opencv.core.Point(d.get(38).x + offsetx, d.get(38).y + offsety));
+        imagePointsList.add(new org.opencv.core.Point(d.get(44).x + offsetx, d.get(44).y + offsety));
+
+        imagePointsList.add(new org.opencv.core.Point(d.get(39).x + offsetx, d.get(39).y + offsety));
+        imagePointsList.add(new org.opencv.core.Point(d.get(42).x + offsetx, d.get(42).y + offsety));
+
+        imagePointsList.add(new org.opencv.core.Point(d.get(40).x + offsetx, d.get(40).y + offsety));
+        imagePointsList.add(new org.opencv.core.Point(d.get(46).x + offsetx, d.get(46).y + offsety));
+
+        imagePointsList.add(new org.opencv.core.Point(d.get(41).x + offsetx, d.get(41).y + offsety));
+        imagePointsList.add(new org.opencv.core.Point(d.get(47).x + offsetx, d.get(47).y + offsety));
+
+        //*****************************NOSE*****************************************
+        imagePointsList.add(new org.opencv.core.Point(d.get(28).x + offsetx, d.get(28).y + offsety));
+        imagePointsList.add(new org.opencv.core.Point(d.get(29).x + offsetx, d.get(29).y + offsety));
+        imagePointsList.add(new org.opencv.core.Point(d.get(32).x + offsetx, d.get(32).y + offsety));
+        imagePointsList.add(new org.opencv.core.Point(d.get(33).x + offsetx, d.get(33).y + offsety));
+        imagePointsList.add(new org.opencv.core.Point(d.get(34).x + offsetx, d.get(34).y + offsety));
+
+        //***************************LIPS******************************************
+        imagePointsList.add(new org.opencv.core.Point(d.get(51).x + offsetx, d.get(51).y + offsety));
+        imagePointsList.add(new org.opencv.core.Point(d.get(52).x + offsetx, d.get(52).y + offsety));
+        imagePointsList.add(new org.opencv.core.Point(d.get(50).x + offsetx, d.get(50).y + offsety));
+        imagePointsList.add(new org.opencv.core.Point(d.get(56).x + offsetx, d.get(56).y + offsety));
+        imagePointsList.add(new org.opencv.core.Point(d.get(58).x + offsetx, d.get(58).y + offsety));
+        imagePointsList.add(new org.opencv.core.Point(d.get(57).x + offsetx, d.get(57).y + offsety));
 
         MatOfPoint2f modelPoints = new MatOfPoint2f();
         modelPoints.fromList(imagePointsList);
@@ -370,25 +513,38 @@ public class OnGetImageListener implements OnImageAvailableListener {
                                 // Draw landmark
                                 ArrayList<Point> landmarks = ret.getFaceLandmarks();
                                 MatOfPoint3f model_points = get_3d_model_points();
-                                MatOfPoint2f image_points  = get_2d_image_points(landmarks);
-                                int focal_length = mCroppedBitmap.getHeight();
+                                MatOfPoint2f image_points  = get_2d_image_points(landmarks, true);
+                                int focal_length = mCroppedBitmap.getWidth();
 
-                                Mat camera_matrix = get_camera_matrix(focal_length, new Point(mCroppedBitmap.getWidth()/2, mCroppedBitmap.getHeight()/2));
+                                Mat camera_matrix = get_camera_matrix(focal_length, new Point(mCroppedBitmap.getHeight()/2, mCroppedBitmap.getWidth()/2));
                                 MatOfDouble dist_coeffs = new MatOfDouble(Mat.zeros(4,1, CvType.CV_64FC1));
 
                                 Mat rvec = new Mat();
                                 Mat tvec = new Mat();
 
                                 Calib3d.solvePnP(model_points, image_points, camera_matrix, new MatOfDouble(), rvec, tvec);
+                                Mat Rmat = Mat.eye(3, 3, CvType.CV_32F);
+                                Mat Rmat2 = Mat.eye(3, 3, CvType.CV_32F);
 
+                                Calib3d.Rodrigues(rvec, Rmat);
+                                Mat ans = Mat.eye(3, 1, CvType.CV_32F);
+                                Rmat.convertTo(Rmat2,-1,-1);
+                                Core.gemm(Rmat2,tvec, 1, Mat.eye(3, 3, CvType.CV_32F),0,ans, 0);
                                 List<Point3> objectPointsList    = new ArrayList<Point3>(1);
-                                objectPointsList.add(new Point3(0,0,1000.0));
+                                objectPointsList.add(new Point3(0,0,VECTOR_SIZE));
+                                //objectPointsList.add(new Point3(0,500,0));
                                 MatOfPoint3f nose = new MatOfPoint3f();
+                                MatOfPoint3f c3d = new MatOfPoint3f();
                                 nose.fromList(objectPointsList);
-
+                                List<Point3> objectPointsList2    = new ArrayList<Point3>(1);
+                                double t = ans.get(2,0)[0] / VECTOR_SIZE;
+                                objectPointsList2.add(new Point3((ans.get(0,0)[0]) / t, (ans.get(1,0)[0]) / t, (ans.get(2,0)[0]) / t));
+                                c3d.fromList(objectPointsList2);
                                 MatOfPoint2f nose2 = new MatOfPoint2f();
+                                MatOfPoint2f camera = new MatOfPoint2f();
 
                                 projectPoints(nose,rvec,tvec,camera_matrix,new MatOfDouble(),nose2);
+                                projectPoints(c3d, rvec, tvec, camera_matrix, new MatOfDouble(), camera);
 
                                 for (Point point : landmarks) {
                                     int pointX = (int) (point.x * resizeRatio);
@@ -402,9 +558,30 @@ public class OnGetImageListener implements OnImageAvailableListener {
 
                                 Mat im = new Mat();
                                 Utils.bitmapToMat(mCroppedBitmap, im);
-                                Imgproc.line(im,image_points.toList().get(0),nose2.toList().get(0),new Scalar(255,0,0),2 );
+                                org.opencv.core.Point looking_point = nose2.toList().get(0);
+                                org.opencv.core.Point nose_point = image_points.toList().get(0);
+                                org.opencv.core.Point3 camera_point = c3d.toList().get(0);
+                                int cam_x = mCroppedBitmap.getWidth()/2;
+                                int cam_y = mCroppedBitmap.getHeight()/2;
+                                Double dist_nose_look_xz = Math.sqrt(Math.pow(0-0,2)+Math.pow(0-VECTOR_SIZE,2));
+                                Double dist_nose_camera_xz = Math.sqrt(Math.pow(0-camera_point.x,2)+Math.pow(0-camera_point.z,2));
+                                Double dist_look_camera_xz = Math.sqrt(Math.pow(0-camera_point.x,2)+Math.pow(VECTOR_SIZE-camera_point.z,2));
 
+                                Double dist_nose_look_yz = Math.sqrt(Math.pow(0-0,2)+Math.pow(0-VECTOR_SIZE,2));
+                                Double dist_nose_camera_yz = Math.sqrt(Math.pow(0-camera_point.y,2)+Math.pow(0-camera_point.z,2));
+                                Double dist_look_camera_yz = Math.sqrt(Math.pow(0-camera_point.y,2)+Math.pow(VECTOR_SIZE-camera_point.z,2));
+
+                                Double head_angle_xz = Math.acos((Math.pow(dist_look_camera_xz,2)-Math.pow(dist_nose_look_xz,2)-Math.pow(dist_nose_camera_xz,2))/(-2*dist_nose_look_xz*dist_nose_camera_xz));
+                                Double head_angle_yz = Math.acos((Math.pow(dist_look_camera_yz,2)-Math.pow(dist_nose_look_yz,2)-Math.pow(dist_nose_camera_yz,2))/(-2*dist_nose_look_yz*dist_nose_camera_yz));
+
+                                //Double head_angle_y = Math.asin(Math.abs(looking_point.y - nose_point.y)/Math.sqrt(Math.pow(looking_point.x-nose_point.x,2)+Math.pow(looking_point.y-nose_point.y,2)));
+                                //Double head_angle_x = Math.asin(Math.abs(looking_point.x - nose_point.x)/Math.sqrt(Math.pow(looking_point.x-nose_point.x,2)+Math.pow(looking_point.z-nose_point.z,2)));
+                                mTransparentTitleView.setText("head yz: "+String.format("%1$,.2f",head_angle_yz*180/Math.PI)+" head xz: "+String.format("%1$,.2f",head_angle_xz*180/Math.PI)+
+                                                            " ("+String.format("%1$,.2f",camera_point.x)+", "+String.format("%1$,.2f",camera_point.y)+", "+String.format("%1$,.2f",camera_point.z)+")");
+                                Imgproc.line(im,nose_point,looking_point,new Scalar(255,0,0),2 );
+                                Imgproc.line(im,nose_point,camera.toList().get(0),new Scalar(0,0,255),2 );
                                 Utils.matToBitmap(im,mCroppedBitmap);
+
                             }
                         }
 

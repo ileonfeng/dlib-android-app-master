@@ -30,7 +30,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
-import static com.tzutalin.dlibtest.OnGetImageListener.JAVA_DETECTOR;
+//import static com.tzutalin.dlibtest.OnGetImageListener.JAVA_DETECTOR;
 import static org.opencv.imgproc.Imgproc.TM_CCOEFF;
 import static org.opencv.imgproc.Imgproc.TM_CCOEFF_NORMED;
 import static org.opencv.imgproc.Imgproc.TM_CCORR;
@@ -50,7 +50,7 @@ public class OpenCVcamera extends AppCompatActivity implements CameraBridgeViewB
     private CascadeClassifier      mJavaDetectorEye;
 
 
-    private int                    mDetectorType       = JAVA_DETECTOR;
+    private int                    mDetectorType       = 0;
     private String[]               mDetectorName;
     private CameraBridgeViewBase mOpenCvCameraView;
 
@@ -192,7 +192,7 @@ public class OpenCVcamera extends AppCompatActivity implements CameraBridgeViewB
 
     public OpenCVcamera() {
         mDetectorName = new String[2];
-        mDetectorName[JAVA_DETECTOR] = "Java";
+        //mDetectorName[JAVA_DETECTOR] = "Java";
 
         Log.i(TAG, "Instantiated new " + this.getClass());
     }
@@ -261,7 +261,7 @@ public class OpenCVcamera extends AppCompatActivity implements CameraBridgeViewB
 
         MatOfRect faces = new MatOfRect();
 
-        if (mDetectorType == JAVA_DETECTOR) {
+        if (mDetectorType == 0) {
             if (mJavaDetector != null)
                 mJavaDetector.detectMultiScale(mGray, faces, 1.1, 2, 2, // TODO: objdetect.CV_HAAR_SCALE_IMAGE
                         new Size(mAbsoluteFaceSize, mAbsoluteFaceSize), new Size());
