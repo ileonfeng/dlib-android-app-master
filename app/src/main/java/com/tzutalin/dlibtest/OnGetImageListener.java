@@ -16,11 +16,9 @@
 
 package com.tzutalin.dlibtest;
 
-import android.app.Activity;
 import android.content.Context;
 import android.content.res.AssetManager;
 import android.content.res.Configuration;
-import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.Bitmap.Config;
 import android.graphics.Canvas;
@@ -35,7 +33,6 @@ import android.media.ImageReader;
 import android.media.ImageReader.OnImageAvailableListener;
 import android.os.Handler;
 import android.os.Trace;
-import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.Display;
 import android.view.WindowManager;
@@ -46,8 +43,6 @@ import com.tzutalin.dlib.VisionDetRet;
 
 import junit.framework.Assert;
 
-import org.opencv.android.BaseLoaderCallback;
-import org.opencv.android.LoaderCallbackInterface;
 import org.opencv.calib3d.Calib3d;
 import org.opencv.core.CvType;
 import org.opencv.core.Mat;
@@ -57,33 +52,13 @@ import org.opencv.core.MatOfPoint3f;
 import org.opencv.core.Point3;
 
 import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Vector;
-
-import org.opencv.calib3d.Calib3d;
 import org.opencv.android.Utils;
 import org.opencv.core.*;
 import org.opencv.imgproc.Imgproc;
-import org.opencv.objdetect.CascadeClassifier;
-import org.opencv.objdetect.Objdetect;
 
-import static android.R.attr.angle;
-import static android.R.attr.type;
-import static android.R.attr.width;
-import static android.R.attr.x;
-import static android.R.string.no;
-import static android.os.Build.VERSION_CODES.M;
-import static org.opencv.calib3d.Calib3d.calibrate;
 import static org.opencv.calib3d.Calib3d.projectPoints;
-import static org.opencv.calib3d.Calib3d.solvePnP;
-import static org.opencv.imgproc.Imgproc.COLOR_BGR2GRAY;
-import static org.opencv.imgproc.Imgproc.TM_SQDIFF;
-import static org.opencv.imgproc.Imgproc.cvtColor;
-import static org.opencv.imgproc.Imgproc.pointPolygonTest;
 
 
 /**
@@ -121,6 +96,10 @@ public class OnGetImageListener implements OnImageAvailableListener {
     private FloatingCameraWindow mWindow;
     private Paint mFaceLandmardkPaint;
 
+    final private int kEyePercentTop = 25;
+    final private int kEyePercentSide = 13;
+    final private int kEyePercentHeight = 30;
+    final private int kEyePercentWidth = 35;
 
     public void initialize(
             final Context context,
@@ -510,6 +489,13 @@ public class OnGetImageListener implements OnImageAvailableListener {
 
                                 Canvas canvas = new Canvas(mCroppedBitmap);
 
+                                org.opencv.core.Rect face = new org.opencv.core.Rect(ret.getLeft(),ret.getTop(),ret.getRight() - ret.getLeft(),ret.getBottom() - ret.getTop());
+                                Mat gray = new Mat (mCroppedBitmap.getWidth(), mCroppedBitmap.getHeight(), CvType.CV_8UC1);
+                                Utils.bitmapToMat(mCroppedBitmap, gray);
+                                Imgproc.cvtColor(gray, gray, Imgproc.COLOR_RGB2GRAY);
+                                Mat roi = gray.submat(face);
+
+
                                 // Draw landmark
                                 ArrayList<Point> landmarks = ret.getFaceLandmarks();
                                 MatOfPoint3f model_points = get_3d_model_points();
@@ -552,7 +538,6 @@ public class OnGetImageListener implements OnImageAvailableListener {
 
                                     canvas.drawCircle(pointX, pointY, 1, mFaceLandmardkPaint);
                                 }
-
                                 //onlyHeadPoseLandmarks(canvas,landmarks);
 
 

@@ -17,16 +17,16 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
+    <com.tzutalin.dlibtest.AutoFitTextureView
+        android:id="@+id/texture"
+        android:layout_width="1dp"
+        android:layout_height="1dp"
+        android:layout_alignParentBottom="true" />
+
     <com.tzutalin.dlibtest.TrasparentTitleView
         android:id="@+id/results"
         android:layout_width="match_parent"
         android:layout_height="112dp"
         android:layout_alignParentTop="true" />
-
-    <com.tzutalin.dlibtest.AutoFitTextureView
-        android:id="@+id/texture"
-        android:layout_width="1dp"
-        android:layout_height="1dp"
-        android:layout_alignParentStart="true" />
 
 </RelativeLayout>
