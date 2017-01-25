@@ -30,6 +30,8 @@ import org.opencv.android.BaseLoaderCallback;
 import org.opencv.android.LoaderCallbackInterface;
 import org.opencv.android.OpenCVLoader;
 
+import static android.support.v7.widget.StaggeredGridLayoutManager.TAG;
+
 /**
  * Created by darrenl on 2016/5/20.
  */
@@ -37,29 +39,36 @@ public class CameraActivity extends Activity {
 
     private static int OVERLAY_PERMISSION_REQ_CODE = 1;
 
-    private BaseLoaderCallback mOpenCVCallBack = new BaseLoaderCallback(this) {
+    static{ System.loadLibrary("opencv_java3"); }
+
+    private BaseLoaderCallback mLoaderCallback = new BaseLoaderCallback(this) {
         @Override
         public void onManagerConnected(int status) {
             switch (status) {
-                case LoaderCallbackInterface.SUCCESS: {
-                    //System.loadLibrary("ndklibrarysample");
-                }
-                break;
-                default: {
+                case LoaderCallbackInterface.SUCCESS:
+                {
+                } break;
+                default:
+                {
                     super.onManagerConnected(status);
-                }
-                break;
+                } break;
             }
         }
     };
 
     @Override
+    protected void onResume() {
+        super.onResume();
+        if (!OpenCVLoader.initDebug()) {
+            OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_3_1_0, this, mLoaderCallback);
+        } else {
+            mLoaderCallback.onManagerConnected(LoaderCallbackInterface.SUCCESS);
+        }
+    }
+
+    @Override
     protected void onCreate(final Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        if (!OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_3_1_0,
-                CameraActivity.this, mOpenCVCallBack)) {
-            Log.e("TEST", "Cannot connect to OpenCV Manager");
-        }
 
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 

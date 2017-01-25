@@ -79,32 +79,11 @@ public class MainActivity extends AppCompatActivity {
     @ViewById(R.id.toolbar)
     protected Toolbar mToolbar;
 
-
-    private BaseLoaderCallback mOpenCVCallBack = new BaseLoaderCallback(this) {
-        @Override
-        public void onManagerConnected(int status) {
-            switch (status) {
-                case LoaderCallbackInterface.SUCCESS: {
-                    //System.loadLibrary("ndklibrarysample");
-                }
-                break;
-                default: {
-                    super.onManagerConnected(status);
-                }
-                break;
-            }
-        }
-    };
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
 
         super.onCreate(savedInstanceState);
 
-        if (!OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_3_1_0,
-                MainActivity.this, mOpenCVCallBack)) {
-            Log.e("TEST", "Cannot connect to OpenCV Manager");
-        }
         mListView = (MaterialListView) findViewById(R.id.material_listview);
         setSupportActionBar(mToolbar);
         // Just use hugo to print log

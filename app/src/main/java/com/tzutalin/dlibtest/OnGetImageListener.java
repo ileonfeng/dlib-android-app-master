@@ -51,14 +51,24 @@ import org.opencv.core.MatOfPoint2f;
 import org.opencv.core.MatOfPoint3f;
 import org.opencv.core.Point3;
 
+
 import java.io.File;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.PriorityQueue;
+import java.util.Queue;
+import java.util.Stack;
+import java.util.concurrent.LinkedBlockingQueue;
+
 import org.opencv.android.Utils;
 import org.opencv.core.*;
 import org.opencv.imgproc.Imgproc;
 
 import static android.R.id.mask;
+import static android.media.CamcorderProfile.get;
+import static com.tzutalin.dlibtest.R.id.cancel_action;
+import static com.tzutalin.dlibtest.R.id.results;
 import static org.opencv.calib3d.Calib3d.projectPoints;
 import static org.opencv.core.CvType.CV_32F;
 import static org.opencv.core.CvType.CV_64F;
@@ -89,6 +99,8 @@ public class OnGetImageListener implements OnImageAvailableListener {
     private Bitmap mRGBframeBitmap = null;
     private Bitmap mCroppedBitmap = null;
 
+    private String targetPath;
+
 
     private File                   mCascadeFile;
     private File                   mCascadeFileEye;
@@ -102,29 +114,12 @@ public class OnGetImageListener implements OnImageAvailableListener {
     private FloatingCameraWindow mWindow;
     private Paint mFaceLandmardkPaint;
 
-    // Size constants
-    final private int kEyePercentTop = 25;
-    final private int kEyePercentSide = 13;
-    final private int kEyePercentHeight = 30;
-    final private int kEyePercentWidth = 35;
-
-    // Preprocessing
-    final Boolean kSmoothFaceImage = false;
-    final double kSmoothFaceFactor = 0.005;
-
     // Algorithm Parameters
-    final int kFastEyeWidth = 50;
+    final int kFastEyeWidth = 10;
     final int kWeightBlurSize = 5;
     final Boolean kEnableWeight = true;
     final double kWeightDivisor = 1.0;
     final double kGradientThreshold = 50.0;
-
-    // Postprocessing
-    final Boolean kEnablePostProcess = true;
-    final double kPostProcessThreshold = 0.97;
-
-    // Eye Corner
-    final Boolean kEnableEyeCorner = false;
 
 
     public void initialize(
@@ -142,6 +137,12 @@ public class OnGetImageListener implements OnImageAvailableListener {
         mFaceLandmardkPaint.setColor(Color.BLUE);
         mFaceLandmardkPaint.setStrokeWidth(2);
         mFaceLandmardkPaint.setStyle(Paint.Style.STROKE);
+
+        targetPath = Constants.getFaceShapeModelPath();
+        if (!new File(targetPath).exists()) {
+            mTransparentTitleView.setText("Copying landmark model to " + targetPath);
+            FileUtils.copyFileFromRawToOthers(mContext, R.raw.shape_predictor_68_face_landmarks, targetPath);
+        }
     }
 
     public void deInitialize() {
@@ -487,51 +488,38 @@ public class OnGetImageListener implements OnImageAvailableListener {
         dst.setDensity(DisplayMetrics.DENSITY_DEFAULT);
         mCroppedBitmap = dst;*/
 
-        if (SAVE_PREVIEW_BITMAP) {
-            ImageUtils.saveBitmap(mCroppedBitmap);
-        }
 
 
         mInferenceHandler.post(
                 new Runnable() {
                     @Override
                     public void run() {
-                        final String targetPath = Constants.getFaceShapeModelPath();
-                        if (!new File(targetPath).exists()) {
-                            mTransparentTitleView.setText("Copying landmark model to " + targetPath);
-                            FileUtils.copyFileFromRawToOthers(mContext, R.raw.shape_predictor_68_face_landmarks, targetPath);
-                        }
-
                         //long startTime = System.currentTimeMillis();
                         List<VisionDetRet> results;
-                        synchronized (OnGetImageListener.this) {
-                            results = mPeopleDet.detBitmapFace(mCroppedBitmap, targetPath);
-                        }
+                        results = mPeopleDet.detBitmapFace(mCroppedBitmap, targetPath);
                         //long endTime = System.currentTimeMillis();
                         //mTransparentTitleView.setText("Time cost: " + String.valueOf((endTime - startTime) / 1000f) + " sec");
                         // Draw on bitmap
+                        Canvas canvas = new Canvas(mCroppedBitmap);
                         if (results != null) {
                             for (final VisionDetRet ret : results) {
                                 float resizeRatio = 1.0f;
-
-                                Canvas canvas = new Canvas(mCroppedBitmap);
-
                                 org.opencv.core.Rect face = new org.opencv.core.Rect(ret.getLeft(),ret.getTop(),ret.getRight() - ret.getLeft(),ret.getBottom() - ret.getTop());
                                 Mat gray = new Mat (mCroppedBitmap.getWidth(), mCroppedBitmap.getHeight(), CvType.CV_8UC1);
                                 Utils.bitmapToMat(mCroppedBitmap, gray);
                                 Imgproc.cvtColor(gray, gray, Imgproc.COLOR_RGB2GRAY);
-                                Mat faceROI = gray.submat(face);
-
-                                //-- Find eye regions and draw them
-                                int eye_region_width = (int)(face.width * (kEyePercentWidth/100.0));
-                                int eye_region_height = (int)(face.width * (kEyePercentHeight/100.0));
-                                int eye_region_top = (int)(face.height * (kEyePercentTop/100.0));
-                                org.opencv.core.Rect leftEyeRegion = new org.opencv.core.Rect((int)(face.width*(kEyePercentSide/100.0)), eye_region_top, eye_region_width, eye_region_height);
-                                org.opencv.core.Rect rightEyeRegion = new org.opencv.core.Rect(face.width - eye_region_width - (int)(face.width*(kEyePercentSide/100.0)), eye_region_top, eye_region_width, eye_region_height);
-
+                                /*face.x = Math.max(1,face.x);
+                                face.y = Math.max(1,face.y);
+                                if(face.x + face.width >= gray.width()) {
+                                    face.width = gray.width() - face.x - 1;
+                                }
+                                if(face.y + face.height >= gray.height()) {
+                                    face.height = gray.height() - face.y - 1;
+                                }
+                                face.width = Math.max(1,face.width);
+                                face.height = Math.max(1,face.height);*/
+                                Mat faceROI = gray;
                                 //-- Find Eye Centers
-                                org.opencv.core.Point leftPupil = findEyeCenter(faceROI,leftEyeRegion,"Left Eye");
-                                org.opencv.core.Point rightPupil = findEyeCenter(faceROI,rightEyeRegion,"Right Eye");
 
 
                                 // Draw landmark
@@ -570,12 +558,40 @@ public class OnGetImageListener implements OnImageAvailableListener {
                                 projectPoints(nose,rvec,tvec,camera_matrix,new MatOfDouble(),nose2);
                                 projectPoints(c3d, rvec, tvec, camera_matrix, new MatOfDouble(), camera);
 
-                                for (Point point : landmarks) {
+                                int Ltop = (landmarks.get(43).y + landmarks.get(42).y) / 2;
+                                int Lbottom = (landmarks.get(47).y + landmarks.get(42).y) / 2;
+                                int Lleft = (landmarks.get(42).x + landmarks.get(43).x) / 2;
+                                int Lright = (landmarks.get(45).x + landmarks.get(44).x) / 2;
+                                int Lheight = Lbottom - Ltop;
+                                if (Lheight < 1)
+                                    Lheight = 1;
+                                org.opencv.core.Rect leftEyeRegion = new org.opencv.core.Rect(Lleft, Ltop,Lright - Lleft,Lheight );
+                                int Rtop = (landmarks.get(39).y + landmarks.get(38).y) / 2;
+                                int Rbottom = (landmarks.get(39).y + landmarks.get(40).y) / 2;
+                                int Rright = (landmarks.get(39).x + landmarks.get(38).x) / 2;
+                                int Rleft = (landmarks.get(37).x + landmarks.get(36).x) / 2;
+                                int Rheight = Rbottom - Rtop;
+                                if (Rheight < 1)
+                                    Rheight = 1;
+                                org.opencv.core.Rect rightEyeRegion = new org.opencv.core.Rect(Rleft, Rtop,Rright - Rleft, Rheight);
+                                org.opencv.core.Point leftPupil = findEyeCenter(faceROI,leftEyeRegion,"Left Eye");
+                                org.opencv.core.Point rightPupil = findEyeCenter(faceROI,rightEyeRegion,"Right Eye");
+
+
+                                // change eye centers to face coordinates
+                                rightPupil.x += rightEyeRegion.x;
+                                rightPupil.y += rightEyeRegion.y;
+                                leftPupil.x += leftEyeRegion.x;
+                                leftPupil.y += leftEyeRegion.y;
+
+                                /*for (Point point : landmarks) {
                                     int pointX = (int) (point.x * resizeRatio);
                                     int pointY = (int) (point.y * resizeRatio);
 
                                     canvas.drawCircle(pointX, pointY, 1, mFaceLandmardkPaint);
-                                }
+                                }*/
+                                canvas.drawRect(leftEyeRegion.x,leftEyeRegion.y,leftEyeRegion.x + leftEyeRegion.width,leftEyeRegion.y + leftEyeRegion.height,mFaceLandmardkPaint);
+                                canvas.drawRect(rightEyeRegion.x,rightEyeRegion.y,rightEyeRegion.x + rightEyeRegion.width,rightEyeRegion.y + rightEyeRegion.height,mFaceLandmardkPaint);
                                 //onlyHeadPoseLandmarks(canvas,landmarks);
 
 
@@ -600,11 +616,13 @@ public class OnGetImageListener implements OnImageAvailableListener {
                                 //Double head_angle_y = Math.asin(Math.abs(looking_point.y - nose_point.y)/Math.sqrt(Math.pow(looking_point.x-nose_point.x,2)+Math.pow(looking_point.y-nose_point.y,2)));
                                 //Double head_angle_x = Math.asin(Math.abs(looking_point.x - nose_point.x)/Math.sqrt(Math.pow(looking_point.x-nose_point.x,2)+Math.pow(looking_point.z-nose_point.z,2)));
                                 mTransparentTitleView.setText("head yz: "+String.format("%1$,.2f",head_angle_yz*180/Math.PI)+" head xz: "+String.format("%1$,.2f",head_angle_xz*180/Math.PI)+
-                                                            " ("+String.format("%1$,.2f",camera_point.x)+", "+String.format("%1$,.2f",camera_point.y)+", "+String.format("%1$,.2f",camera_point.z)+")");
+                                        " ("+String.format("%1$,.2f",camera_point.x)+", "+String.format("%1$,.2f",camera_point.y)+", "+String.format("%1$,.2f",camera_point.z)+")");
                                 Imgproc.line(im,nose_point,looking_point,new Scalar(255,0,0),2 );
                                 Imgproc.line(im,nose_point,camera.toList().get(0),new Scalar(0,0,255),2 );
+                                Imgproc.circle(im, rightPupil,3, new Scalar(0,255,0));
+                                Imgproc.circle(im, leftPupil,3, new Scalar(0,255,0));
                                 Utils.matToBitmap(im,mCroppedBitmap);
-
+                                im.release();
                             }
                         }
 
@@ -613,19 +631,27 @@ public class OnGetImageListener implements OnImageAvailableListener {
                         mIsComputing = false;
                     }
                 });
-
         Trace.endSection();
     }
 
     Mat scaleToFastSize(final Mat src,Mat dst) {
-        Imgproc.resize(src, dst, new Size(kFastEyeWidth,kFastEyeWidth/src.cols() * src.rows()));
+        float a = (((float)kFastEyeWidth)/src.cols()) * src.rows();
+        if(a < 2)
+            a = 2;
+        Log.d("size:",new Size(kFastEyeWidth,a).toString());
+        Imgproc.resize(src, dst, new Size(kFastEyeWidth,a));
         return dst;
     }
 
     private org.opencv.core.Point findEyeCenter(Mat face, org.opencv.core.Rect eye, String debugWindow) {
+        Log.d("eye:",eye.toString());
+        Log.d("face:",face.toString());
         Mat eyeROIUnscaled = face.submat(eye);//Not sure if correct
-        Mat eyeROI;
+        Log.d("eye:",eye.toString() + "("+eyeROIUnscaled.cols() + "," + eyeROIUnscaled.rows() + ")" + " (" + eyeROIUnscaled.width() + "," + eyeROIUnscaled.height() + ")");
+        Mat eyeROI = new Mat();
+
         eyeROI = scaleToFastSize(eyeROIUnscaled, eyeROI);
+        eyeROIUnscaled.release();
         // draw eye region
         //rectangle(face,eye,1234);
         //-- Find the gradient
@@ -633,80 +659,161 @@ public class OnGetImageListener implements OnImageAvailableListener {
         Mat gradientY = computeMatXGradient(eyeROI.t()).t();
         //-- Normalize and threshold the gradient
         // compute all the magnitudes
-        Mat mags = matrixMagnitude(gradientX, gradientY);//עצרתי פה!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        Mat mags = matrixMagnitude(gradientX, gradientY);
         //compute the threshold
         double gradientThresh = computeDynamicThreshold(mags, kGradientThreshold);
         //double gradientThresh = kGradientThreshold;
         //double gradientThresh = 0;
         //normalize
-        for (int y = 0; y < eyeROI.rows; ++y) {
-            double *Xr = gradientX.ptr<double>(y), *Yr = gradientY.ptr<double>(y);
-            const double *Mr = mags.ptr<double>(y);
-            for (int x = 0; x < eyeROI.cols; ++x) {
-                double gX = Xr[x], gY = Yr[x];
-                double magnitude = Mr[x];
+        for (int y = 0; y < eyeROI.rows(); ++y) {
+            for (int x = 0; x < eyeROI.cols(); ++x) {
+                double gX = gradientX.get(y,x)[0];
+                double gY = gradientY.get(y,x)[0];
+                double magnitude = mags.get(y,x)[0];
                 if (magnitude > gradientThresh) {
-                    Xr[x] = gX/magnitude;
-                    Yr[x] = gY/magnitude;
+                    gradientX.put(y,x, gX/magnitude);
+                    gradientY.put(y,x, gY/magnitude);
                 } else {
-                    Xr[x] = 0.0;
-                    Yr[x] = 0.0;
+                    gradientX.put(y,x,0.0);
+                    gradientY.put(y,x,0.0);
                 }
             }
         }
-        imshow(debugWindow,gradientX);
+        mags.release();
+        //imshow(debugWindow,gradientX); //mb needed
         //-- Create a blurred and inverted image for weighting
-        Mat weight;
-        GaussianBlur( eyeROI, weight, cv::Size( kWeightBlurSize, kWeightBlurSize ), 0, 0 );
-        for (int y = 0; y < weight.rows; ++y) {
-            unsigned char *row = weight.ptr<unsigned char>(y);
-            for (int x = 0; x < weight.cols; ++x) {
-                row[x] = (255 - row[x]);
+        Mat weight = new Mat();
+        Imgproc.GaussianBlur( eyeROI, weight, new Size( kWeightBlurSize, kWeightBlurSize ), 0, 0 );
+        for (int y = 0; y < weight.rows(); ++y) {
+            for (int x = 0; x < weight.cols(); ++x) {
+                weight.put(y,x,(255 - weight.get(y,x)[0]));
             }
         }
         //imshow(debugWindow,weight);
         //-- Run the algorithm!
         Mat outSum = Mat.zeros(eyeROI.rows(),eyeROI.cols(),CV_64F);
+        eyeROI.release();
         // for each possible gradient location
         // Note: these loops are reversed from the way the paper does them
         // it evaluates every possible center for each gradient location instead of
         // every possible gradient location for every center.
-        for (int y = 0; y < weight.rows; ++y) {
-            const double *Xr = gradientX.ptr<double>(y), *Yr = gradientY.ptr<double>(y);
-            for (int x = 0; x < weight.cols; ++x) {
-                double gX = Xr[x], gY = Yr[x];
+        for (int y = 0; y < weight.rows(); ++y) {
+            for (int x = 0; x < weight.cols(); ++x) {
+                double gX = gradientX.get(y,x)[0];
+                double gY = gradientY.get(y,x)[0];
                 if (gX == 0.0 && gY == 0.0) {
                     continue;
                 }
                 testPossibleCentersFormula(x, y, weight, gX, gY, outSum);
             }
         }
+        gradientX.release();
+        gradientY.release();
         // scale all the values down, basically averaging them
-        double numGradients = (weight.rows*weight.cols);
-        Mat out;
+        double numGradients = (weight.rows()*weight.cols());
+        weight.release();
+        Mat out = new Mat();
         outSum.convertTo(out, CV_32F,1.0/numGradients);
+        outSum.release();
         //imshow(debugWindow,out);
         //-- Find the maximum point
-        Point maxP;
+        org.opencv.core.Point maxP;
         double maxVal;
-        Core.minMaxLoc(out, NULL,&maxVal,NULL,&maxP);
-        //-- Flood fill the edges
-        if(kEnablePostProcess) {
-            Mat floodClone;
-            //double floodThresh = computeDynamicThreshold(out, 1.5);
-            double floodThresh = maxVal * kPostProcessThreshold;
-            Imgproc.threshold(out, floodClone, floodThresh, 0.0f, THRESH_TOZERO);
-            if(kPlotVectorField) {
-                //plotVecField(gradientX, gradientY, floodClone);
-                imwrite("eyeFrame.png",eyeROIUnscaled);
-            }
-            Mat mask = floodKillEdges(floodClone);
-            //imshow(debugWindow + " Mask",mask);
-            //imshow(debugWindow,out);
-            // redo max
-            Core.minMaxLoc(out, NULL,&maxVal,NULL,&maxP,mask);
-        }
+        Core.MinMaxLocResult res = Core.minMaxLoc(out);
+        maxVal = res.maxVal;
+        maxP = res.maxLoc;
+/*
+        Mat floodClone = new Mat();
+        //double floodThresh = computeDynamicThreshold(out, 1.5);
+        double floodThresh = maxVal * 0.97;
+        Imgproc.threshold(out, floodClone, floodThresh, 0.0f, THRESH_TOZERO);
+        //Mat mask = floodKillEdges(floodClone);
+        //imshow(debugWindow + " Mask",mask);
+        //imshow(debugWindow,out);
+        // redo max
+        res = Core.minMaxLoc(out, floodClone);
+        out.release();
+        maxVal = res.maxVal;
+        maxP = res.maxLoc;
+*/
         return unscalePoint(maxP,eye);
+    }
+
+    org.opencv.core.Point unscalePoint(org.opencv.core.Point p, org.opencv.core.Rect origSize) {
+        float ratio = (((float)kFastEyeWidth)/origSize.width);
+        int x = (int)Math.round(p.x / ratio);
+        int y = (int)Math.round(p.y / ratio);
+        return new org.opencv.core.Point(x,y);
+    }
+
+    Boolean inMat(org.opencv.core.Point p,int rows,int cols) {
+        return p.x >= 0 && p.x < cols && p.y >= 0 && p.y < rows;
+    }
+
+    Boolean floodShouldPushPoint(org.opencv.core.Point np, Mat mat) {
+        return inMat(np, mat.rows(), mat.cols());
+    }
+
+    Mat floodKillEdges(Mat mat) {
+        Mat mask=new Mat(mat.size(), CvType.CV_8U, new Scalar(255));
+        ArrayDeque<org.opencv.core.Point> toDo=new ArrayDeque();
+        toDo.add(new org.opencv.core.Point(0,0));
+        while (!toDo.isEmpty()) {
+            org.opencv.core.Point p = toDo.poll();
+
+            if ( mat.get((int)p.x,(int)p.y)[0]==0.0f) {
+                continue;
+            }
+            // add in every direction
+            org.opencv.core.Point np=new org.opencv.core.Point(p.x + 1, p.y); // right
+            if (floodShouldPushPoint(np, mat)) toDo.push(np);
+            np.x = p.x - 1; np.y = p.y; // left
+            if (floodShouldPushPoint(np, mat)) toDo.push(np);
+            np.x = p.x; np.y = p.y + 1; // down
+            if (floodShouldPushPoint(np, mat)) toDo.push(np);
+            np.x = p.x; np.y = p.y - 1; // up
+            if (floodShouldPushPoint(np, mat)) toDo.push(np);
+            // kill it
+
+            mat.put((int)p.x,(int)p.y,0.0f);
+
+            mask.put((int)p.x,(int)p.y,0);
+        }
+        for (int i = 0; i < mask.height();i++)
+        {
+            String line = "";
+            for (int j = 0; j < mask.width();j++)
+            {
+                line += mask.get(i,j)[0] + " ";
+            }
+            Log.d(i+":",line);
+        }
+        return mask;
+    }
+    void testPossibleCentersFormula(int x, int y, Mat weight,double gx, double gy, Mat out) {
+        // for all possible centers
+        for (int cy = 0; cy < out.rows(); ++cy) {
+            for (int cx = 0; cx < out.cols(); ++cx) {
+                if (x == cx && y == cy) {
+                    continue;
+                }
+                // create a vector from the possible center to the gradient origin
+                double dx = x - cx;
+                double dy = y - cy;
+                // normalize d
+                double magnitude = Math.sqrt((dx * dx) + (dy * dy));
+                dx = dx / magnitude;
+                dy = dy / magnitude;
+                double dotProduct = dx*gx + dy*gy;
+                dotProduct = Math.max(0.0,dotProduct);
+                // square and multiply by the weight
+                if (kEnableWeight) {
+                    out.put(cy,cx,out.get(cy,cx)[0] += dotProduct * dotProduct * ((weight.get(cy,cx)[0])/kWeightDivisor));
+                } else {
+                    out.put(cy,cx,out.get(cy,cx)[0] += dotProduct * dotProduct);
+                }
+            }
+        }
     }
 
     private static Mat computeMatXGradient (Mat mat) {
@@ -719,7 +826,31 @@ public class OnGetImageListener implements OnImageAvailableListener {
                 output.put(y,x, (mr.get(0,x+1)[0] - mr.get(0,x-1)[0])/2.0);
             }
         }
+
         return output;
     }
 
+    private static Mat matrixMagnitude (Mat matX, Mat matY ) {
+        //Mat output = new Mat(mat.rows(), mat.cols(), CvType.CV_64F);
+        Mat mags = new Mat(matX.rows(), matX.cols(), CvType.CV_32F);
+        for (byte y = 0; y < matX.rows(); ++y) {
+            Mat xr = matX.row(y);
+            Mat yr = matY.row(y);
+            for (byte x = 0; x < matX.cols(); ++x) {
+                double gX = xr.get(0,x)[0];
+                double gY = yr.get(0,x)[0];
+                double magnitude = Math.sqrt((gX * gX) + (gY * gY));
+                mags.put(y,x, magnitude);
+            }
+        }
+        return mags;
+    }
+
+    double computeDynamicThreshold(Mat mat, double stdDevFactor) {
+        MatOfDouble stdMagnGrad = new MatOfDouble();
+        MatOfDouble meanMagnGrad = new MatOfDouble();
+        Core.meanStdDev(mat,stdMagnGrad,meanMagnGrad);
+        double stdDev = stdMagnGrad.get(0,0)[0]/Math.sqrt(mat.rows() * mat.cols());
+        return stdDevFactor * stdDev + meanMagnGrad.get(0,0)[0];
+    }
 }

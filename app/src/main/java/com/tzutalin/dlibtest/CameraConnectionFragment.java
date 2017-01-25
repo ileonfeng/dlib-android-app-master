@@ -46,6 +46,7 @@ import android.os.Handler;
 import android.os.HandlerThread;
 import android.support.v4.app.ActivityCompat;
 import android.util.Log;
+import android.util.Range;
 import android.util.Size;
 import android.util.SparseArray;
 import android.util.SparseIntArray;
@@ -531,6 +532,8 @@ public class CameraConnectionFragment extends Fragment {
 
             // We set up a CaptureRequest.Builder with the output Surface.
             previewRequestBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
+            Range<Integer> fps = new Range<Integer>(15,15);
+            previewRequestBuilder.set(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE,fps);
             previewRequestBuilder.addTarget(surface);
 
             Log.i(TAG, "Opening camera preview: " + previewSize.getWidth() + "x" + previewSize.getHeight());
